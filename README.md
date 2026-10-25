@@ -42,6 +42,8 @@ Accepts one UTF-8 `.jsonl` file, or a Harness `.zip` export containing multiple 
 session logs. The header supplies the session ID; the file supplies provenance.
 Multiple headers in one file, duplicate session IDs, unsupported versions, sequence gaps,
 and unknown required event types are refused. There is no network access during analysis.
+Tool IDs may recur in different steps; pairing uses call IDs, turn/step coordinates and
+available `sourceEventSeqs`, rather than assuming session-global ID uniqueness.
 
 Current Harness exports use `session.v4.jsonl` and
 `subagents/<id>/session.v4.jsonl`. Attachment trees `files/` and `media/` are never parsed

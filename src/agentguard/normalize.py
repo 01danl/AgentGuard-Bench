@@ -1,5 +1,6 @@
 """Projection of the inspected Harness v4 contract, not a full Harness replay engine."""
 
+from collections import defaultdict
 from typing import Any
 
 from .models import Event, InputError, LoadedSession, Session, ToolCall
@@ -89,14 +90,17 @@ def normalize_session(loaded: LoadedSession) -> Session:
         explicit_step = (
             _integer(data.get("step"), "step", location) if kind in POSITIONED_TYPES else None
         )
-        if explicit_turn is not None:
-            if explicit_turn != turn:
-                step = None
-            turn = explicit_turn
         if kind == "turn/start":
+            turn = explicit_turn
             step = None
-        if explicit_step is not None:
+        if kind == "step/start":
+            if explicit_turn is not None:
+                turn = explicit_turn
             step = explicit_step
+        event_turn = explicit_turn if explicit_turn is not None else turn
+        event_step = (
+            explicit_step if explicit_step is not None else (step if event_turn == turn else None)
+        )
         source_kind = guard = name = call_id = arguments = None
         result = error = metadata = None
         is_error = None
@@ -116,10 +120,15 @@ def normalize_session(loaded: LoadedSession) -> Session:
             if not isinstance(source, dict):
                 raise InputError(f"{location}: expected structured message source")
             source_kind = _string(source.get("kind"), "source.kind", location)
+            expected_role = "tool" if kind == "tool/result" else "user"
+            if message.get("role") not in (None, expected_role):
+                raise InputError(f"{location}: conflicting message role")
             if kind == "user/message" and source_kind == "repeat-tool-reminder":
                 guard = source_kind
                 metadata = source
             if kind == "tool/result":
+                if source_kind not in (None, "tool"):
+                    raise InputError(f"{location}: conflicting tool result source")
                 call_id = _string(message.get("toolCallId"), "toolCallId", location)
                 source_call_id = _string(source.get("callId"), "source.callId", location)
                 if call_id is not None and source_call_id not in (None, call_id):
@@ -133,6 +142,8 @@ def normalize_session(loaded: LoadedSession) -> Session:
                 error = data.get("error")
                 if error is not None and not isinstance(error, dict):
                     raise InputError(f"{location}: error must be an object")
+                if error is not None and is_error is not True:
+                    raise InputError(f"{location}: error metadata requires isError=true")
         barrier = (
             kind
             in (
@@ -153,8 +164,8 @@ def normalize_session(loaded: LoadedSession) -> Session:
                 index,
                 timestamp,
                 kind,
-                turn,
-                step,
+                event_turn,
+                event_step,
                 index < cut,
                 source_kind,
                 guard,
@@ -168,32 +179,11 @@ def normalize_session(loaded: LoadedSession) -> Session:
                 barrier,
             )
         )
-        if kind == "step/end":
+        if kind == "step/end" and (event_turn, event_step) == (turn, step):
             step = None
-        if kind == "turn/end":
+        if kind == "turn/end" and event_turn == turn:
             turn = step = None
-    calls: dict[str, Event] = {}
-    results: dict[str, Event] = {}
-    for event in events:
-        if event.kind not in ("tool/call", "tool/result") or event.call_id is None:
-            continue
-        target = calls if event.kind == "tool/call" else results
-        if event.call_id in target:
-            raise InputError(
-                f"{loaded.source}: event {event.seq}: duplicate call/result identifier"
-            )
-        target[event.call_id] = event
-    for call_id, result_event in results.items():
-        call = calls.get(call_id)
-        if call is None:
-            warnings.append(f"event {result_event.seq}: orphan tool result")
-        elif result_event.seq < call.seq:
-            raise InputError(f"{loaded.source}: event {result_event.seq}: result precedes call")
-    normalized_calls = tuple(
-        ToolCall(event, results.get(event.call_id) if event.call_id is not None else None)
-        for event in events
-        if event.kind == "tool/call"
-    )
+    normalized_calls = _pair_calls(events, loaded, warnings)
     return Session(
         loaded.session_id,
         loaded.source,
@@ -202,4 +192,75 @@ def normalize_session(loaded: LoadedSession) -> Session:
         tuple(events),
         normalized_calls,
         tuple(warnings),
+    )
+
+
+def _pair_calls(
+    events: list[Event],
+    loaded: LoadedSession,
+    warnings: list[str],
+) -> tuple[ToolCall, ...]:
+    # Provider call IDs can recur after settlement in another step. They are not
+    # session-global identities. Durable source references are stronger evidence.
+    scoped: dict[tuple[int | None, int | None, str], Event] = {}
+    by_id: dict[str, list[Event]] = defaultdict(list)
+    by_seq: dict[int, Event] = {}
+    results: dict[int, Event] = {}
+    for event in events:
+        if event.kind != "tool/call" or event.call_id is None:
+            continue
+        key = (event.turn, event.step, event.call_id)
+        if key in scoped:
+            raise InputError(f"{loaded.source}: event {event.seq}: duplicate call ID in one step")
+        scoped[key] = event
+        by_id[event.call_id].append(event)
+        by_seq[event.seq] = event
+    for event in events:
+        if event.kind != "tool/result" or event.call_id is None:
+            continue
+        location = f"{loaded.source}: event {event.seq}"
+        row = loaded.rows[event.seq]
+        if isinstance(row.get("surfaceOp"), dict):
+            continue  # A rewritten presentation node is not another execution result.
+        refs = row.get("sourceEventSeqs", [])
+        if not isinstance(refs, list) or any(
+            type(seq) is not int or not 0 <= seq < event.seq for seq in refs
+        ):
+            raise InputError(f"{location}: invalid result source references")
+        cited = [by_seq[seq] for seq in set(refs) if seq in by_seq]
+        if len(cited) > 1 or (cited and cited[0].call_id != event.call_id):
+            raise InputError(f"{location}: conflicting result source call")
+        call = cited[0] if cited else scoped.get((event.turn, event.step, event.call_id))
+        if call is None:
+            candidates = [
+                candidate
+                for candidate in by_id[event.call_id]
+                if all(
+                    left is None or right is None or left == right
+                    for left, right in ((candidate.turn, event.turn), (candidate.step, event.step))
+                )
+            ]
+            if len(candidates) > 1:
+                raise InputError(f"{location}: ambiguous result coordinates")
+            call = candidates[0] if candidates else None
+            if call is None and by_id[event.call_id]:
+                raise InputError(f"{location}: conflicting result coordinates")
+        if call is None:
+            warnings.append(f"event {event.seq}: orphan tool result")
+            continue
+        if any(
+            left is not None and right is not None and left != right
+            for left, right in (
+                (call.turn, event.turn),
+                (call.step, event.step),
+            )
+        ):
+            raise InputError(f"{location}: conflicting result coordinates")
+        if event.seq < call.seq:
+            raise InputError(f"{location}: result precedes call")
+        if call.seq in results:
+            raise InputError(f"{location}: duplicate result for one tool call")
+        results[call.seq] = event
+    return tuple(
+        ToolCall(event, results.get(event.seq)) for event in events if event.kind == "tool/call"
     )

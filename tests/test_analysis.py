@@ -274,6 +274,7 @@ def test_ambiguous_or_malformed_records_refused(trace_file, defect):
     if defect == "duplicate_call":
         calls = [row for row in rows if row["type"] == "tool/call"]
         calls[1]["data"]["callId"] = calls[0]["data"]["callId"]
+        calls[1]["data"]["step"] = calls[0]["data"]["step"]
     elif defect == "conflicting_result_source":
         result = next(row for row in rows if row["type"] == "tool/result")
         result["data"]["message"]["source"]["callId"] = "unrelated"

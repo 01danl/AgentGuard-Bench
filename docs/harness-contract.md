@@ -30,7 +30,7 @@ All links below target that immutable commit.
 | Turn / step | Lifecycle `data.turn`, `data.step`; also present on tool events |
 | Tool invocation | `type: tool/call`; `data.name`, `data.arguments`, `data.callId` |
 | Tool result | `type: tool/result`; `data.message` is a tool-role message |
-| Pairing key | Call `data.callId` = result `data.message.toolCallId` |
+| Pairing key | Call `data.callId` = result `data.message.toolCallId`, scoped by turn/step |
 | Result source | `data.message.source.kind: tool`, `source.callId` duplicates the pairing identity |
 | Tool error | Optional `data.message.isError`; optional `data.error` outside model-facing content |
 | User message | `data` itself is the UserMessage; there is **no nested `data.message`** |
@@ -46,6 +46,14 @@ and queues context for the next step. It uses recursively sorted JavaScript JSON
 defaults to thresholds `[3, 5, 8]`, supports tool include/exclude rules and resets on real
 user messages. Runtime chains live in a `WeakMap<Agent, Chain>` rather than persisted state.
 AgentGuard Bench observes durable events; it does not emulate or configure this runtime.
+
+The upstream V4 relationship validator removes a tool ID when its result settles; it does
+not require global uniqueness across the session. The normal batch writer cites the
+started call through result `sourceEventSeqs`. Rewritten `tool/result` surface nodes do
+not open a new execution lifecycle. The repair implementation can synthesize a result for
+an advertised call that never reached `tool/call`; such a result is not an observed start.
+These details were checked in `session-format-v3-to-v4/src/relationships.ts`,
+`core/tools/src/batch.ts`, and `core/session/src/repair.ts` at the same pinned commit.
 
 The current export has one logical header followed by event lines, canonical
 `session.v4.jsonl` naming, descendants under `subagents/<safe-id>/`, plus `media/` and

@@ -24,6 +24,14 @@
   Missing timestamps, call IDs, arguments, tool names and tool flags can be represented as
   unknown with warnings. Wrong types in the fields we interpret are rejected. Sequence
   numbers and v4 identity/seed headers remain required; missing values are not invented.
+  Conflicting message roles/sources and error metadata without `isError: true` are refused.
+- Call IDs are scoped by turn/step; explicit source references take precedence and must
+  agree with known coordinates and IDs. Reuse in different steps is supported. Ambiguous
+  missing coordinates and duplicate call IDs within one scope are refused. A result
+  without a matching started `tool/call` is retained as an orphan warning; Harness can
+  legitimately synthesize `TOOL_NOT_STARTED` repair results, so an orphan is not a task error.
+- `tool/result` surface replacements are presentation history, not new execution results.
+  Tool flags in reports describe the original matched execution result, not a later rewrite.
 - Unknown required events are refused; unknown `ignorable: true` events are retained
   as counted envelopes without interpreting their payload. Known unrelated events count
   toward totals without being interpreted as behavioral evidence.

@@ -37,8 +37,14 @@ vocabulary. Unknown non-ignorable events fail closed. It is deliberately a proje
 not a replacement for Harness's complete schema validator or surface reconstruction.
 The current turn and step come from lifecycle markers when absent from a relevant event;
 for example `user/message` is a flat message without turn/step in its payload.
-`data.callId` pairs with `data.message.toolCallId` inside the same session. Duplicate
-identifiers and conflicting result sources are refused; missing results remain unknown.
+`data.callId` pairs with `data.message.toolCallId` inside the same session and tool step.
+Call IDs can recur after settlement in another step. Explicit `sourceEventSeqs` references
+are checked against the cited call; absent coordinates permit only an unambiguous match.
+Duplicate calls in one scope, conflicting coordinates/sources and duplicate execution
+results are refused; missing results remain unknown. Result surface replacements are
+counted as events and boundaries, without replacing the observed execution outcome.
+Only lifecycle markers update active turn/step context: an old result being rewritten
+must not move a later flat user message into that result's historical step.
 
 Behavioral analysis excludes the fork-inherited prefix before the last tagged
 `session/end-seed` marker. Untagged resume markers reset local repetition context.
