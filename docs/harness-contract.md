@@ -79,3 +79,56 @@ omits injected guard messages and is therefore unsuitable for this analyzer.
 Related-project pages were inspected as background, not used as the authority for current
 Harness field names. No code from those projects is incorporated. Protocol event names
 in the normalizer come from the official MIT-licensed Harness vocabulary.
+
+## Guard source regression check — 2026-10-25
+
+A fresh fetch of official `master` still resolves to the pinned commit above. Both the
+guard's current README ("Reminder delivery") and implementation create this native V4
+source, inside the flat `user/message.data` UserMessage:
+
+```json
+{
+  "type": "user/message",
+  "data": {
+    "role": "user",
+    "source": {
+      "kind": "repeat-tool-reminder",
+      "form": "notice",
+      "summary": "read × 3"
+    }
+  }
+}
+```
+
+This is a field-location excerpt, not a complete session record. The actual producer
+also supplies an identified message, content, sequence, timestamp and surface operation.
+The detector reads `event.data.source.kind`; neither `event.source` nor
+`event.data.message.source` identifies a native V4 user message. The form and summary
+are metadata; the source kind identifies the producer without searching message text.
+
+The older shape `{"kind":"plugin","plugin":"repeat-tool-reminder","form":"notice"}`
+is documented by the official V3-to-V4
+[source converter](https://github.com/deepseek-ai/deepseek-harness/blob/22ddee3792402c3e70ec5f86a63c3e3e895a2f60/packages/session/session-format-v3-to-v4/src/sources.ts).
+It converts that released V3 identity into `kind: repeat-tool-reminder`, preserves form
+metadata and removes `plugin`. The native V4
+[source validator](https://github.com/deepseek-ai/deepseek-harness/blob/22ddee3792402c3e70ec5f86a63c3e3e895a2f60/packages/session/session-format-v3-to-v4/src/message-sources.ts)
+explicitly refuses `kind: plugin`. It is therefore not a second native V4 guard encoding.
+
+AgentGuard's V4-only detector already recognized the current source correctly. The
+regression check additionally exposed a validation gap: a retired wrapper in a purported
+V4 direct message was silently treated as an unrelated producer, yielding zero reminders.
+Interpreted user/result messages now refuse this retired kind with a re-export diagnostic.
+Historical V3 headers remain unsupported; no migration or legacy guessing was added.
+This is not a complete validation of every nested Harness message slot.
+
+`tests/test_guard_contract.py` specifies a literal current notice independently of the
+shared trace builder, checks normalizer/analyzer and inspect/analyze JSON reporting, and
+rejects the retired wrapper. Negative cases cover text mentions, incidental `plugin`
+fields, source summaries, wrong source nesting and tool-argument decoys. The notice body
+does not contain the guard name. These are synthetic contract regressions, not evidence
+that a real guard-bearing export has been observed.
+
+Verification: all 12 dedicated cases pass; the full working-tree suite passes 125 tests
+on Python 3.14.8 and 3.11.16. The isolated staged snapshot, excluding three pre-existing
+local tests and their unrelated fix, passes 122 tests. Ruff lint and formatting checks
+pass. Reanalysis of RWV-001 produces the unchanged report: 70 calls and zero reminders.

@@ -120,6 +120,11 @@ def normalize_session(loaded: LoadedSession) -> Session:
             if not isinstance(source, dict):
                 raise InputError(f"{location}: expected structured message source")
             source_kind = _string(source.get("kind"), "source.kind", location)
+            if source_kind == "plugin":
+                raise InputError(
+                    f"{location}: retired plugin source is invalid in v4; "
+                    "re-export with current Harness"
+                )
             expected_role = "tool" if kind == "tool/result" else "user"
             if message.get("role") not in (None, expected_role):
                 raise InputError(f"{location}: conflicting message role")
