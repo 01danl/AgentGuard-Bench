@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+build/
+dist/
+.DS_Store
+# Keep private exports out of version control. Only synthetic fixtures belong here.
+private-data/
+*.zip
+*.jsonl
+!tests/fixtures/*.jsonl
+!examples/synthetic-*.jsonl
