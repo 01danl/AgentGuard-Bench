@@ -21,15 +21,6 @@ def analyze_session(session: Session, window: int = 5) -> dict[str, Any]:
     for event in session.events:
         if event.kind == "step/end" and not event.inherited:
             step_ends[(event.turn, event.step)].append(event.seq)
-    # Prefix indexes keep reminder analysis bounded even for large parallel batches.
-    step_indexes = {}
-    for key, calls in step_calls.items():
-        missing = [0]
-        result_max = [-1]
-        for call in calls:
-            missing.append(missing[-1] + (call.result is None))
-            result_max.append(max(result_max[-1], call.result.seq if call.result else -1))
-        step_indexes[key] = ([call.event.seq for call in calls], missing, result_max)
     identities: dict[int, tuple[str, tuple[str, str]] | None] = {}
     action_ids: dict[tuple[str, tuple[str, str]], str] = {}
     evidence: dict[int, dict[str, Any]] = {}
@@ -56,6 +47,20 @@ def analyze_session(session: Session, window: int = 5) -> dict[str, Any]:
             "is_error": call.result.is_error if call.result else None,
             "has_error_metadata": call.result.error is not None if call.result else None,
         }
+
+    # Check group homogeneity directly. A global streak alone cannot prove it
+    # when incomplete/malformed logs reuse step coordinates noncontiguously.
+    step_indexes = {}
+    for key, calls in step_calls.items():
+        missing, result_max, changes = [0], [-1], [0]
+        prior_identity = None
+        for call in calls:
+            identity = identities[call.event.seq]
+            missing.append(missing[-1] + (call.result is None))
+            result_max.append(max(result_max[-1], call.result.seq if call.result else -1))
+            changes.append(changes[-1] + (identity != prior_identity))
+            prior_identity = identity
+        step_indexes[key] = ([call.event.seq for call in calls], missing, result_max, changes)
 
     repeats = []
     previous: Event | None = None
@@ -105,7 +110,7 @@ def analyze_session(session: Session, window: int = 5) -> dict[str, Any]:
             last = live_calls[preceding_index].event
             key = (last.turn, last.step)
             group = step_calls[key]
-            seqs, missing, result_max = step_indexes[key]
+            seqs, missing, result_max, changes = step_indexes[key]
             start = bisect_right(seqs, boundary_before)
             end = bisect_left(seqs, guard.seq)
             if last.turn is not None and last.step is not None:
@@ -118,7 +123,8 @@ def analyze_session(session: Session, window: int = 5) -> dict[str, Any]:
             if (
                 candidate_count
                 and identities[last.seq] is not None
-                and streak_at[last.seq] >= max(2, candidate_count)
+                and streak_at[last.seq] >= 2
+                and changes[end] == changes[start + 1]
                 and closed
                 and missing[end] == missing[start]
                 and result_max[end] < guard.seq

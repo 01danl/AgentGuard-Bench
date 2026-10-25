@@ -158,3 +158,18 @@ def test_aggregate_rejects_duplicate_session_ids(trace_file):
 def test_empty_aggregate_still_validates_window():
     with pytest.raises(ValueError, match="positive"):
         analyze_sessions((), window=0)
+
+
+def test_noncontiguous_step_group_cannot_look_homogeneous(trace_file):
+    rows = make_trace(
+        [("write", "{}"), ("read", "{}"), ("read", "{}"), ("read", "{}")], guard_after=3
+    )
+    # This is not a valid Harness lifecycle, but our partial projector accepts it.
+    # A streak of two read calls must not hide the earlier write in the same group.
+    for row in rows:
+        if row.get("data", {}).get("step") == 3:
+            row["data"]["step"] = 1
+    reminder = analyze(trace_file, rows)["reminders"][0]
+    assert reminder["preceding_step_call_count"] == 2
+    assert reminder["trigger_attribution"] == "unknown"
+    assert reminder["reaction"] == "UNKNOWN"
