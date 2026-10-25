@@ -5,7 +5,7 @@ from collections import Counter, defaultdict
 from typing import Any
 
 from .jsonutil import canonical_arguments
-from .models import Event, Session, ToolCall
+from .models import Event, InputError, Session, ToolCall
 
 
 def analyze_session(session: Session, window: int = 5) -> dict[str, Any]:
@@ -122,6 +122,8 @@ def analyze_session(session: Session, window: int = 5) -> dict[str, Any]:
                 and closed
                 and missing[end] == missing[start]
                 and result_max[end] < guard.seq
+                and guard.turn is not None
+                and guard.step is not None
                 and (guard.turn, guard.step) != (last.turn, last.step)
             ):
                 baseline = live_calls[preceding_index]
@@ -212,6 +214,10 @@ def analyze_session(session: Session, window: int = 5) -> dict[str, Any]:
 
 
 def analyze_sessions(sessions: tuple[Session, ...], window: int = 5) -> dict[str, Any]:
+    if type(window) is not int or window < 1:
+        raise ValueError("window must be a positive integer")
+    if len({session.session_id for session in sessions}) != len(sessions):
+        raise InputError("Duplicate session IDs; aggregate each session only once")
     reports = [analyze_session(session, window) for session in sessions]
     fields = (
         "events",

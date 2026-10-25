@@ -75,7 +75,8 @@ evidence of which parallel call caused a warning.
 An inferred baseline is available only if the preceding observed tool step has known
 turn/step IDs, has closed before the reminder, every candidate call has a completed
 result, all candidates share one action identity, and that identity has an observed
-consecutive streak of at least two. The reminder must enter another step. Intervening
+consecutive streak of at least two. The reminder must have known turn/step coordinates
+and enter another step; absent coordinates cannot prove a step transition. Intervening
 human input or unsupported boundaries invalidate the context. Candidate sequences are
 reported up to 20 entries with explicit count/truncation; the identity check covers all.
 

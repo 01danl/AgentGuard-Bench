@@ -1,4 +1,5 @@
 import json
+from dataclasses import replace
 
 import pytest
 from conftest import make_trace
@@ -161,7 +162,7 @@ def test_human_prompt_resets_repetition_and_window(trace_file):
 def test_no_cross_session_repetition(trace_file):
     loaded = load_sessions(trace_file(make_trace([("read", "{}")])))[0]
     session = normalize_session(loaded)
-    report = analyze_sessions((session, session))
+    report = analyze_sessions((session, replace(session, session_id="another-session")))
     assert report["summary"]["tool_calls"] == 2
     assert report["summary"]["exact_repeats"] == 0
 
