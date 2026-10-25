@@ -83,3 +83,24 @@ Memory scales with parsed input and report size, not just compressed file size.
 Future experiment execution can produce `Session` inputs and independently assessed
 task outcomes without changing parsing or report rendering. There is intentionally no
 generic plugin registry or experiment abstraction in this version.
+
+## Other repository files
+
+- `src/agentguard/__init__.py` defines the package version; `__main__.py` delegates
+  `python -m agentguard` to `cli.main()`.
+- `pyproject.toml` defines packaging, the console entry point, developer dependencies
+  and pytest/Ruff configuration. `.gitignore` excludes build products, virtual environments
+  and private logs. `LICENSE` supplies the project's MIT license.
+- `tests/conftest.py` builds synthetic traces and temporary files. `test_loader.py` checks
+  bounded input and archive handling; `test_normalize.py` covers scoped pairing and historical
+  context; `test_analysis.py` covers behavioral rules; `test_cli.py` checks CLI behavior;
+  `test_audit.py` adds independent metric, isolation, privacy and purity regressions.
+- `tests/fixtures/synthetic-{ignored,changed,interrupted}.jsonl` contain small committed
+  scenarios. They are synthetic fixtures, not independently observed user sessions.
+- `examples/synthetic-session.jsonl` is the public demonstration input;
+  `synthetic-report.{txt,json}` are reproducible CLI outputs.
+  `make_synthetic_zip.py` combines fixtures in a Harness-style archive without overwriting
+  an existing output. The archive's descendant header records its parent relationship.
+- `README.md` is the install/use entry point. `harness-contract.md` records upstream
+  evidence, `limitations.md` bounds interpretation, `metrics.md` defines every reported
+  count/label, and `audit-v0.1.md` records verification and remaining release gates.

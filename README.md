@@ -142,6 +142,9 @@ Source inspection and synthetic contract tests do not establish full integration
 
 Read [architecture](docs/architecture.md), [limitations](docs/limitations.md), and
 [upstream source findings](docs/harness-contract.md) before interpreting research results.
+The [metric definitions](docs/metrics.md) explain each count and classification;
+the [v0.1 engineering audit](docs/audit-v0.1.md) records repairs, executed checks and
+the remaining real-data verification gate.
 
 ## Roadmap
 
