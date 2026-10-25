@@ -1,0 +1,205 @@
+{
+  "schema_version": "0.1",
+  "analyzer_version": "0.1.0",
+  "window": 5,
+  "data_policy": "arguments, results, message text and source summaries omitted",
+  "summary": {
+    "sessions": 1,
+    "events": 31,
+    "inherited_events": 0,
+    "tool_calls": 5,
+    "exact_repeats": 3,
+    "guard_reminders": 1,
+    "missing_tool_results": 0,
+    "reactions": {
+      "IGNORED": 1,
+      "CHANGED": 0,
+      "UNKNOWN": 0
+    },
+    "task_success": null,
+    "guard_causal_effect": null
+  },
+  "sessions": [
+    {
+      "session_id": "synthetic-ignored",
+      "source": "synthetic-session.jsonl",
+      "format_version": 4,
+      "parent_session": null,
+      "summary": {
+        "events": 31,
+        "inherited_events": 0,
+        "tool_calls": 5,
+        "exact_repeats": 3,
+        "guard_reminders": 1,
+        "missing_tool_results": 0,
+        "reactions": {
+          "IGNORED": 1,
+          "CHANGED": 0,
+          "UNKNOWN": 0
+        },
+        "task_success": null,
+        "verified_lack_of_progress": null
+      },
+      "open_turns_at_end": [],
+      "warnings": [],
+      "tool_calls": [
+        {
+          "seq": 6,
+          "timestamp_ms": 7,
+          "turn": 1,
+          "step": 1,
+          "tool_name": "read",
+          "call_id": "call-1",
+          "action_id": "action_0001",
+          "argument_mode": "json",
+          "result_seq": 7,
+          "is_error": false,
+          "has_error_metadata": false
+        },
+        {
+          "seq": 11,
+          "timestamp_ms": 12,
+          "turn": 1,
+          "step": 2,
+          "tool_name": "read",
+          "call_id": "call-2",
+          "action_id": "action_0001",
+          "argument_mode": "json",
+          "result_seq": 12,
+          "is_error": false,
+          "has_error_metadata": false
+        },
+        {
+          "seq": 16,
+          "timestamp_ms": 17,
+          "turn": 1,
+          "step": 3,
+          "tool_name": "read",
+          "call_id": "call-3",
+          "action_id": "action_0001",
+          "argument_mode": "json",
+          "result_seq": 17,
+          "is_error": false,
+          "has_error_metadata": false
+        },
+        {
+          "seq": 22,
+          "timestamp_ms": 23,
+          "turn": 1,
+          "step": 4,
+          "tool_name": "read",
+          "call_id": "call-4",
+          "action_id": "action_0001",
+          "argument_mode": "json",
+          "result_seq": 23,
+          "is_error": false,
+          "has_error_metadata": false
+        },
+        {
+          "seq": 27,
+          "timestamp_ms": 28,
+          "turn": 1,
+          "step": 5,
+          "tool_name": "write",
+          "call_id": "call-5",
+          "action_id": "action_0002",
+          "argument_mode": "json",
+          "result_seq": 28,
+          "is_error": false,
+          "has_error_metadata": false
+        }
+      ],
+      "repetitions": [
+        {
+          "previous_seq": 6,
+          "seq": 11,
+          "streak_length": 2,
+          "action_id": "action_0001",
+          "observation": "repeated_call",
+          "possible_loop": false,
+          "verified_lack_of_progress": null
+        },
+        {
+          "previous_seq": 11,
+          "seq": 16,
+          "streak_length": 3,
+          "action_id": "action_0001",
+          "observation": "repeated_call",
+          "possible_loop": true,
+          "verified_lack_of_progress": null
+        },
+        {
+          "previous_seq": 16,
+          "seq": 22,
+          "streak_length": 4,
+          "action_id": "action_0001",
+          "observation": "repeated_call",
+          "possible_loop": true,
+          "verified_lack_of_progress": null
+        }
+      ],
+      "reminders": [
+        {
+          "session_id": "synthetic-ignored",
+          "event_seq": 20,
+          "timestamp_ms": 21,
+          "turn": 1,
+          "step": 4,
+          "guard_name": "repeat-tool-reminder",
+          "source_form": "notice",
+          "trigger_attribution": "inferred_unique_previous_step",
+          "trigger_call_seq": 16,
+          "preceding_step_call_seqs": [
+            16
+          ],
+          "preceding_step_call_count": 1,
+          "preceding_step_evidence_truncated": false,
+          "reaction": "IGNORED",
+          "classification_basis": "first_subsequent_call",
+          "following_calls": [
+            {
+              "seq": 22,
+              "timestamp_ms": 23,
+              "turn": 1,
+              "step": 4,
+              "tool_name": "read",
+              "call_id": "call-4",
+              "action_id": "action_0001",
+              "argument_mode": "json",
+              "result_seq": 23,
+              "is_error": false,
+              "has_error_metadata": false,
+              "reaction": "IGNORED"
+            },
+            {
+              "seq": 27,
+              "timestamp_ms": 28,
+              "turn": 1,
+              "step": 5,
+              "tool_name": "write",
+              "call_id": "call-5",
+              "action_id": "action_0002",
+              "argument_mode": "json",
+              "result_seq": 28,
+              "is_error": false,
+              "has_error_metadata": false,
+              "reaction": "CHANGED"
+            }
+          ],
+          "window_observed": 2,
+          "window_complete": false,
+          "window_stop_reason": "end_of_log",
+          "recovered": null
+        }
+      ]
+    }
+  ],
+  "interpretation": [
+    "Repetition is an observation, not proof of an error or lack of progress.",
+    "possible_loop is an unvalidated heuristic: at least 3 consecutive identical calls.",
+    "Reaction uses the first call; all observed calls in the bounded window are retained.",
+    "Trigger attribution is inferred, never an upstream trigger ID.",
+    "CHANGED does not imply RECOVERED; is_error=false does not imply task success.",
+    "Inherited fork history is counted as events but excluded from behavioral metrics."
+  ]
+}

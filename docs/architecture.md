@@ -1,0 +1,79 @@
+# Architecture
+
+AgentGuard Bench v0.1 is a single-process offline pipeline. There are no runtime dependencies
+outside Python's standard library, no Harness execution and no network calls.
+
+```mermaid
+flowchart LR
+    A[JSONL or Harness ZIP] --> B[loader.py: bounded input]
+    B --> C[LoadedSession per file]
+    C --> D[normalize.py: v4 projection]
+    D --> E[Session / Event / ToolCall]
+    E --> F[analyzer.py: repetitions and reactions]
+    F --> G[Safe evidence report]
+    G --> H[report.py: text or JSON]
+    I[cli.py: arguments and exit codes] --> B
+    I --> H
+```
+
+## Modules
+
+| Module | Responsibility |
+|---|---|
+| `models.py` | Internal typed records, safe input errors and configurable resource limits |
+| `loader.py` | Stream UTF-8 JSONL, identify sessions, validate ZIP metadata, enforce budgets |
+| `normalize.py` | Validate relevant envelopes, project fields, correlate results, identify boundaries |
+| `jsonutil.py` | Strict JSON decoding and deterministic argument identity |
+| `analyzer.py` | Pure behavioral observations and safe evidence projection |
+| `report.py` | Text / JSON serialization of the safe projection only |
+| `cli.py` | Parse options, invoke pipeline, present diagnostics and return exit codes |
+
+The loader handles input failures atomically. Each JSONL has exactly one header; the ZIP
+returns multiple independent `LoadedSession` records. Duplicate session IDs are refused
+instead of accidentally combining generations. Attachments are not read or extracted.
+
+Normalization validates contiguous sequence numbers from zero and the known v4 event
+vocabulary. Unknown non-ignorable events fail closed. It is deliberately a projection,
+not a replacement for Harness's complete schema validator or surface reconstruction.
+The current turn and step come from lifecycle markers when absent from a relevant event;
+for example `user/message` is a flat message without turn/step in its payload.
+`data.callId` pairs with `data.message.toolCallId` inside the same session. Duplicate
+identifiers and conflicting result sources are refused; missing results remain unknown.
+
+Behavioral analysis excludes the fork-inherited prefix before the last tagged
+`session/end-seed` marker. Untagged resume markers reset local repetition context.
+Synthetic user-role context does not reset it, while a real user prompt does. Surface
+replacements, inbox splices and PTC dispatches reset the context because this MVP does
+not reconstruct their complete model-visible effect. Warnings identify those boundaries.
+
+Tool identity is `(tool name, canonical arguments)`. JSON nodes receive type tags and
+object keys are recursively sorted; arrays preserve order. Numeric spelling is retained
+to avoid float-rounding collisions. Invalid/ambiguous JSON uses an explicitly tagged
+raw Unicode string fallback. Canonical values stay in memory. Reports expose only
+session-local action labels, never argument previews or argument fingerprints.
+
+For each structured reminder, the analyzer inspects the previous tool batch. One observed
+identity, a completed step, completed results and a repeated streak allow a conservative
+inferred baseline. Distinct or insufficient candidates yield unknown attribution.
+The first following call determines the headline reaction; up to K calls retain separate
+comparisons. The next reminder or a behavioral boundary closes the observation window.
+
+Sequence and per-step indexes avoid a full log scan per reminder. A normal session takes
+O(events + calls + reminders × log(events) + emitted evidence), excluding argument parsing
+and sorting. Candidate evidence is capped at 20 sequence numbers with an explicit total
+and truncation flag. Post-reminder windows end at the next reminder, bounding overlap.
+Memory scales with parsed input and report size, not just compressed file size.
+
+## Tradeoffs
+
+1. **Pin v4 instead of guessing migrations.** Older/future formats fail explicitly.
+   Adapters can be added after inspecting their source contracts and tests.
+2. **Conservative attribution instead of fabricated trigger links.** Batch ambiguity and
+   missing evidence yield `UNKNOWN`; coverage is lower, claims are more defensible.
+3. **Store bounded input in memory instead of a streaming analysis database.** This keeps
+   result pairing and later evidence inspection simple. Resource budgets are necessary,
+   and byte limits are not hard process-memory limits.
+
+Future experiment execution can produce `Session` inputs and independently assessed
+task outcomes without changing parsing or report rendering. There is intentionally no
+generic plugin registry or experiment abstraction in this version.

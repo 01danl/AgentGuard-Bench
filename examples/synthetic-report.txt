@@ -1,0 +1,19 @@
+AgentGuard Bench 0.1 — offline observations
+Sessions: 1 | Events: 31 (inherited: 0)
+Tool calls: 5 | Exact repeats: 3 | Guard reminders: 1
+Missing tool results: 0
+Reactions: IGNORED=1, CHANGED=0, UNKNOWN=0
+
+Session "synthetic-ignored" from "synthetic-session.jsonl"
+  Repeated call: seq 6 -> 11 (action_0001, streak=2)
+  Repeated call: seq 11 -> 16 (action_0001, streak=3)
+  Repeated call: seq 16 -> 22 (action_0001, streak=4)
+  Guard seq 20: IGNORED | trigger=16 (inferred_unique_previous_step) | following seqs=[22, 27] | window=2/5
+  Call seq 6: "read" action=action_0001 result_seq=7 is_error=false
+  Call seq 11: "read" action=action_0001 result_seq=12 is_error=false
+  Call seq 16: "read" action=action_0001 result_seq=17 is_error=false
+  Call seq 22: "read" action=action_0001 result_seq=23 is_error=false
+  Call seq 27: "write" action=action_0002 result_seq=28 is_error=false
+
+CHANGED does not mean RECOVERED. Task success and guard causal effect: unknown.
+Arguments, tool results and message text are omitted.
