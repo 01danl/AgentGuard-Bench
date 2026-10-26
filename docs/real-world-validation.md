@@ -221,3 +221,11 @@ Compatibility is confirmed for the observed subset of this real v4 session. It i
 a blanket guarantee for every v4 export. Continue real-world validation with a separately
 obtained guard-bearing export and representative multi-session/interrupted cases before
 broadening scope. No v0.2 functionality is implemented by this validation.
+
+## Follow-up — 2026-10-26
+
+[RWV-002](controlled-runtime-validation.md) now checks actual guard delivery and exports
+from the installed Harness runtime with an explicitly scripted model. It exposed and
+fixed an inbox-handoff analysis bug. This is a separate controlled integration result;
+RWV-001 itself still has no guard notice, and natural-model post-reminder behavior remains
+unverified. No original user log was changed or supplemented with fabricated events.

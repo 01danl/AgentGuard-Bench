@@ -18,8 +18,10 @@
   future versions are explicitly refused. Package version `0.2.1-rc.3` is a separate concept.
 - No legacy storage chunk decoder, migration engine, `.jsonl.zstd` reader, SQLite reader,
   or Markdown transcript importer is implemented. Use the current Harness ZIP export.
-- No real exported session was available. Tests use explicitly synthetic fixtures derived
-  from source. Integration compatibility with real sessions has **not** been verified.
+- Evidence includes one user-provided guard-free v4 export and actual Harness runtime
+  exports with a scripted model and native guard delivery. Tests still use explicitly
+  synthetic fixtures. Natural-model post-reminder behavior and general compatibility
+  remain unverified; see [controlled runtime validation](controlled-runtime-validation.md).
 - This is a focused envelope/message projection, not complete Harness validation or replay.
   Missing timestamps, call IDs, arguments, tool names and tool flags can be represented as
   unknown with warnings. Wrong types in the fields we interpret are rejected. Sequence

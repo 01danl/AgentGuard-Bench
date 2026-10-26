@@ -75,7 +75,7 @@ can still be known from its first call. Calls can span turns if there is no inte
 
 ### Example result
 
-All committed examples and fixtures are **synthetic**, constructed from the inspected v4
+All committed JSONL examples and fixtures are **synthetic**, constructed from the inspected v4
 contract. They are not user sessions and do not demonstrate guard effectiveness.
 
 ```text
@@ -137,14 +137,20 @@ interrupted sessions, inherited history, optional/missing fields and safe CLI ou
 Compatibility was researched against Harness commit
 [`22ddee3792402c3e70ec5f86a63c3e3e895a2f60`](https://github.com/deepseek-ai/deepseek-harness/tree/22ddee3792402c3e70ec5f86a63c3e3e895a2f60),
 session package `0.2.1-rc.3`, on 2026-10-25. Format v4 is the persistence version,
-not the package version. **No real exported session was available for integration testing.**
-Source inspection and synthetic contract tests do not establish full integration compatibility.
+not the package version. One user-provided guard-free v4 export has been checked, followed
+by actual Harness runtime exports with an explicitly scripted model and native guard
+delivery. Natural-model behavior after a real reminder remains unverified; this is not
+a general compatibility or recovery guarantee.
 
 Read [architecture](docs/architecture.md), [limitations](docs/limitations.md), and
 [upstream source findings](docs/harness-contract.md) before interpreting research results.
 The [metric definitions](docs/metrics.md) explain each count and classification;
 the [v0.1 engineering audit](docs/audit-v0.1.md) records repairs, executed checks and
 the remaining real-data verification gate.
+See [controlled runtime validation](docs/controlled-runtime-validation.md) and the
+[read-only reproduction example](examples/harness_guard_probe/README.md) for the observed
+guard handoff, its regression fix and concrete commands. These runs use a scripted model,
+not live inference. The [v0.2 proposal](docs/v0.2-plan.md) is conditional and unimplemented.
 
 ## Roadmap
 
