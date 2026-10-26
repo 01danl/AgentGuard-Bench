@@ -1,0 +1,24 @@
+- id: headless-runner
+  disabled: true
+- id: session-title-llm
+  disabled: true
+- id: session-log-deepseek
+  disabled: true
+- id: session-telemetry-otel
+  disabled: true
+- id: llm-deepseek
+  disabled: true
+- id: llm-deepseek-account
+  disabled: true
+- id: llm-pi-ai
+  disabled: true
+- id: session-persistence-jsonl
+  config:
+    root: !!js process.env.DSH_HOME + '/sessions'
+    compression: none
+- id: repeat-tool-reminder
+  config:
+    thresholds: [3, 5, 8]
+    include: []
+    exclude: []
+    argumentsPreviewChars: 500

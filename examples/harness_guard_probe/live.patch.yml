@@ -1,0 +1,20 @@
+# Optional live-model run: this overlay is composed, but inference was not executed.
+# Use only with a fresh DSH_HOME and a disposable working directory.
+- id: session-title-llm
+  disabled: true
+- id: session-log-deepseek
+  disabled: true
+- id: session-telemetry-otel
+  disabled: true
+- id: session-persistence-jsonl
+  config:
+    root: !!js process.env.DSH_HOME + '/sessions'
+    compression: none
+- id: llm-deepseek
+  config:
+    apiKeyEnv: DEEPSEEK_API_KEY
+    maxTokens: 1024
+    streamIdleTimeoutMs: 15000
+- insert:
+    - id: agentguard-read-only-validation
+      name: !!js process.env.AGENTGUARD_READ_ONLY_PLUGIN
