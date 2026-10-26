@@ -50,6 +50,12 @@ behavioral boundary. A known identity equal to the previous call's identity incr
 the streak; a different/unknown identity starts a new streak. Non-call lifecycle/result
 events do not break a chain unless marked as boundaries.
 
+A verified guard-only next-step enqueue/claim/admission handoff does not break a chain.
+The normalizer checks queue coordinates, unique message IDs and exact admitted payloads
+before the next model attempt. It does not count queue entries as extra reminders.
+Canceled, mixed or unverified edits remain boundaries. This fixes observation of native
+Harness delivery without changing repetition equality, loop thresholds or reaction labels.
+
 For maximal known-identity runs of lengths L1, L2, ...:
 
 `exact_repeats = sum(max(Lj - 1, 0))`

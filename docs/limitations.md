@@ -36,8 +36,11 @@
   as counted envelopes without interpreting their payload. Known unrelated events count
   toward totals without being interpreted as behavioral evidence.
 - PTC-dispatched actions and inbox-spliced or compacted messages are not reconstructed as
-  additional tool calls or guard reminders. These events / surface replacements create
-  analysis boundaries with warnings. Thus reminder counts cover direct committed
+  additional tool calls or guard reminders. Unverified inbox edits, PTC events and surface
+  replacements create analysis boundaries with warnings. A verified guard-only next-step
+  enqueue/full-claim followed by exact identified message admission is transparent;
+  cancellation, mixed input, duplicate IDs or unmatched payloads remain boundaries.
+  Thus reminder counts cover direct committed
   `user/message` records only, not every historical or indirect presentation of a message.
 - Inherited fork history is excluded from behavioral metrics and listed separately in
   event totals. It is never attributed to the child agent. Ordinary untagged resume markers

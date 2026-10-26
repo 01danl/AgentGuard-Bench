@@ -49,8 +49,12 @@ must not move a later flat user message into that result's historical step.
 Behavioral analysis excludes the fork-inherited prefix before the last tagged
 `session/end-seed` marker. Untagged resume markers reset local repetition context.
 Synthetic user-role context does not reset it, while a real user prompt does. Surface
-replacements, inbox splices and PTC dispatches reset the context because this MVP does
-not reconstruct their complete model-visible effect. Warnings identify those boundaries.
+replacements, unverified inbox edits and PTC dispatches reset the context because this MVP
+does not reconstruct their complete model-visible effect. Warnings identify those boundaries.
+The normalizer recognizes one verified exception: guard-only next-step enqueue and full
+claim, followed by admission of the exact same identified messages in the next step.
+Those queue records preserve context; only the direct user messages count as reminders.
+Canceled, mixed, malformed or unmatched queue edits remain conservative boundaries.
 
 Tool identity is `(tool name, canonical arguments)`. JSON nodes receive type tags and
 object keys are recursively sorted; arrays preserve order. Numeric spelling is retained

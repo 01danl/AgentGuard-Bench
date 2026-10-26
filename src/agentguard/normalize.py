@@ -55,6 +55,7 @@ def _string(value: Any, field: str, location: str) -> str | None:
 def normalize_session(loaded: LoadedSession) -> Session:
     events: list[Event] = []
     warnings: list[str] = []
+    guard_handoffs = _guard_handoff_splices(loaded.rows)
     cut = -1
     for row in loaded.rows:
         if (
@@ -149,18 +150,16 @@ def normalize_session(loaded: LoadedSession) -> Session:
                     raise InputError(f"{location}: error must be an object")
                 if error is not None and is_error is not True:
                     raise InputError(f"{location}: error metadata requires isError=true")
+        unsupported_boundary = kind in ("tool/ptc-dispatch", "tool/ptc-dispatch-start") or (
+            kind == "agent/inbox/spliced" and index not in guard_handoffs
+        )
         barrier = (
-            kind
-            in (
-                "session/end-seed",
-                "agent/inbox/spliced",
-                "tool/ptc-dispatch",
-                "tool/ptc-dispatch-start",
-            )
+            kind == "session/end-seed"
+            or unsupported_boundary
             or isinstance(row.get("surfaceOp"), dict)
             or (kind == "user/message" and source_kind in (None, "user"))
         )
-        if kind in ("agent/inbox/spliced", "tool/ptc-dispatch", "tool/ptc-dispatch-start"):
+        if unsupported_boundary:
             warnings.append(f"event {index}: unsupported behavioral boundary; analysis resets")
         if isinstance(row.get("surfaceOp"), dict):
             warnings.append(f"event {index}: surface replacement; analysis resets")
@@ -198,6 +197,101 @@ def normalize_session(loaded: LoadedSession) -> Session:
         normalized_calls,
         tuple(warnings),
     )
+
+
+def _guard_handoff_splices(rows: tuple[dict[str, Any], ...]) -> set[int]:
+    """Recognize only verified guard-only next-step enqueue/claim/admission paths.
+
+    Harness logs queue edits before entering the same UserMessage in the next step.
+    These records neither introduce human input nor represent additional reminders.
+    Cancellation, mixed edits, invalid queue coordinates or unobserved delivery remain
+    opaque boundaries. This is not a general inbox or model-surface interpreter.
+    """
+    queue: list[tuple[int | None, dict[str, Any]]] | None = []
+    transparent: set[int] = set()
+    for index, row in enumerate(rows):
+        if row.get("type") != "agent/inbox/spliced":
+            continue
+        data = row.get("data")
+        if not isinstance(data, dict) or data.get("target") != "next-step" or queue is None:
+            continue
+        start, count, inserted = (
+            data.get("start"),
+            data.get("removedCount", 0),
+            data.get("inserted"),
+        )
+        if (
+            type(start) is not int
+            or type(count) is not int
+            or not 0 <= start <= len(queue)
+            or not 0 <= count <= len(queue) - start
+            or not isinstance(inserted, list)
+            or not all(isinstance(m, dict) for m in inserted)
+        ):
+            queue = None
+            continue
+        guard_append = (
+            start == len(queue)
+            and count == 0
+            and "outcome" not in data
+            and all(
+                isinstance(m.get("id"), str)
+                and bool(m["id"])
+                and m.get("role") == "user"
+                and isinstance(m.get("content"), list)
+                and isinstance(m.get("source"), dict)
+                and m["source"].get("kind") == "repeat-tool-reminder"
+                for m in inserted
+            )
+        )
+        removed = queue[start : start + count]
+        claimed_guards = (
+            start == 0
+            and count == len(queue)
+            and count > 0
+            and not inserted
+            and "outcome" not in data
+            and all(origin is not None for origin, _ in removed)
+            and len({message["id"] for _, message in removed}) == len(removed)
+        )
+        queue = (
+            queue[:start]
+            + [(index if guard_append else None, m) for m in inserted]
+            + queue[start + count :]
+        )
+        if not claimed_guards:
+            continue
+        entered = False
+        matched = 0
+        for lookahead in range(index + 1, len(rows)):
+            future = rows[lookahead]
+            kind = future.get("type")
+            if kind == "step/start":
+                if entered:
+                    break
+                entered = True
+            elif kind in (
+                "assistant/message",
+                "assistant/attempt",
+                "tool/call",
+                "step/end",
+                "turn/end",
+                "agent/inbox/spliced",
+                "session/end-seed",
+            ):
+                break
+            elif (
+                entered
+                and kind == "user/message"
+                and future.get("surfaceOp") == "append"
+                and future.get("data") == removed[matched][1]
+            ):
+                matched += 1
+                if matched == len(removed):
+                    transparent.add(index)
+                    transparent.update(origin for origin, _ in removed if origin is not None)
+                    break
+    return transparent
 
 
 def _pair_calls(
