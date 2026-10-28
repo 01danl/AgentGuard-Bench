@@ -1,5 +1,6 @@
-# Optional live-model run: this overlay is composed, but inference was not executed.
-# Use only with a fresh DSH_HOME and a disposable working directory.
+# Optional live-model overlay. The launcher must replace the plugin placeholder
+# below with an absolute path; dsh 0.2.1-rc.2 does not stringify a `!!js` plugin-row
+# name during profile preflight. Use a fresh DSH_HOME and disposable working directory.
 - id: session-title-llm
   disabled: true
 - id: session-log-deepseek
@@ -17,4 +18,4 @@
     streamIdleTimeoutMs: 15000
 - insert:
     - id: agentguard-read-only-validation
-      name: !!js process.env.AGENTGUARD_READ_ONLY_PLUGIN
+      name: __AGENTGUARD_READ_ONLY_PLUGIN__

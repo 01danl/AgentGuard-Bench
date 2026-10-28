@@ -65,13 +65,19 @@ the model adapter's real next request includes that structured message. These re
 validate delivery, export and analysis plumbing. The scripted next action was selected
 in advance, so none of the reactions demonstrates causal guard efficacy or model recovery.
 
-## Optional follow-up with a real model — inference not yet executed
+## Optional follow-up with a real model — executed once
 
-No `DEEPSEEK_API_KEY` was available during validation. The personal managed credential
-store was not opened. Configure your key locally; do not paste it into a chat or a report.
-The following uses a **different** overlay that keeps the ordinary headless driver and
-DeepSeek adapter enabled. Overlay composition was checked with `--dump-config`; inference
-and actual model behavior remain unverified.
+A controlled live run was executed on 2026-10-28 with Harness **0.2.1-rc.2** and
+`deepseek-flash`. It produced a real guard notice after three identical reads; the model
+then stopped without a fourth tool call, so the Analyzer reported `UNKNOWN`. See
+[RWV-003](../../docs/real-model-validation.md). This is one deliberately repetitive prompt,
+not a natural task, and it did not complete the requested task; it is not an efficacy result.
+
+Configure `DEEPSEEK_API_KEY` locally; do not paste it into a chat or a report. The following
+uses the ordinary headless driver and DeepSeek adapter, with a **fresh** `DSH_HOME`. It
+materializes the read-only plugin path into a temporary overlay: Harness 0.2.1-rc.2 does not
+stringify a `!!js` expression in a plugin-row `name` during profile preflight, so the
+template now uses a literal placeholder.
 
 Reuse the two prepared workspace files, but choose a fresh Harness home. From the repository
 root, with `AGENTGUARD_RUN_ROOT` still set and `DEEPSEEK_API_KEY` available locally:
@@ -79,6 +85,7 @@ root, with `AGENTGUARD_RUN_ROOT` still set and `DEEPSEEK_API_KEY` available loca
 ```bash
 export AGENTGUARD_RUN_ROOT
 python3 - <<'PY'
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -89,12 +96,15 @@ home.mkdir()  # Refuse reuse of an existing home.
 key = os.environ.get("DEEPSEEK_API_KEY")
 if not key:
     raise SystemExit("Configure DEEPSEEK_API_KEY locally before this optional run")
+plugin = Path("examples/harness_guard_probe/read-only.mjs").resolve()
+template = Path("examples/harness_guard_probe/live.patch.yml").read_text()
+marker = "__AGENTGUARD_READ_ONLY_PLUGIN__"
+if template.count(marker) != 1:
+    raise SystemExit("live.patch.yml must contain exactly one plugin placeholder")
+patch = root / "live.patch.yml"
+patch.write_text(template.replace(marker, json.dumps(str(plugin))))
 env = {name: os.environ[name] for name in ("PATH", "HOME")}
-env.update(
-    DSH_HOME=str(home), DEEPSEEK_API_KEY=key,
-    AGENTGUARD_READ_ONLY_PLUGIN=str(Path("examples/harness_guard_probe/read-only.mjs").resolve()),
-)
-patch = Path("examples/harness_guard_probe/live.patch.yml").resolve()
+env.update(DSH_HOME=str(home), DEEPSEEK_API_KEY=key)
 task = (
     "Controlled guard validation. Use only read. Make four sequential calls with "
     'exactly {"file_path":"probe.txt"}, then read alternative.txt once and finish. '
