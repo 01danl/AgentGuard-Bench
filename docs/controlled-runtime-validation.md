@@ -158,12 +158,18 @@ The script selected its post-notice action in advance. **CHANGED does not imply
 RECOVERED**, and neither completing this integration probe nor a non-error read proves
 success on a meaningful user task. All task-success/recovery/causal fields remain null.
 
-No live DeepSeek inference was attempted because no API key was available in the launch
-environment. The optional live-model overlay was composed successfully; actual inference
-is explicitly unrun. [Concrete follow-up commands](../examples/harness_guard_probe/README.md#optional-follow-up-with-a-real-model--inference-not-yet-executed)
+At the time of RWV-002, no live DeepSeek inference was attempted because no API key was
+available in the launch environment. The optional live-model overlay composed, but its
+dynamic plugin-row name was disabled by the 0.2.1-rc.2 preflight; actual inference was
+explicitly unrun. [Concrete follow-up commands](../examples/harness_guard_probe/README.md#optional-follow-up-with-a-real-model--executed-once)
 use a fresh home, read-only tool scope, a request output cap and a wall-time limit. If
 the model never triggers a notice, retain that outcome rather than inserting a warning.
 
-The next gate is a natural-model guard-bearing export reconciled against raw events.
-The [v0.2 proposal](v0.2-plan.md) is a plan only, conditional on that gate; nothing from
-v0.2 or an A/B runner has been implemented.
+The gate for a real-model guard-bearing export was subsequently met for one controlled run
+by [RWV-003](real-model-validation.md): the model received an actual notice after three
+identical reads and stopped without a fourth tool call. The Analyzer's `UNKNOWN` reaction
+and all counts were reconciled against the raw v4 events. This is not a natural-task sample,
+a recovery result or a causal comparison; those limitations remain open.
+
+The [v0.2 proposal](v0.2-plan.md) remains a plan only. Nothing from v0.2 or an A/B runner
+has been implemented.
