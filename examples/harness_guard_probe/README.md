@@ -131,6 +131,12 @@ This is **not a hard total-token budget**. The prompt cannot guarantee that a re
 will repeat an action enough times to trigger the guard. If no notice is recorded, retain
 that observation as a no-guard run. Never add a warning to make the scenario succeed.
 
+For a paired diagnostic, apply [`no-guard.patch.yml`](no-guard.patch.yml) as a second
+`--patch` layer after the materialized live overlay. It disables `repeat-tool-reminder`; it
+is only for a no-guard companion, never for repairing a guard-bearing run. One such pair is
+recorded in the [RWV-003/RWV-004 annotation](../../docs/real-model-pair-annotation.md);
+it is diagnostic, not an A/B efficacy result.
+
 Analyze the printed **durable** `session.v4.jsonl` with `agentguard inspect` and
 `agentguard analyze --window 5 --format json`. A normal browser ZIP can alternatively
 be obtained through the installed Harness `/export` command. Keep real logs private.

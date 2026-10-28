@@ -1,0 +1,4 @@
+# Diagnostic no-guard companion only. Materialize live.patch.yml first, then apply
+# this overlay after it. Never use this to make a guard-bearing run look successful.
+- id: repeat-tool-reminder
+  disabled: true

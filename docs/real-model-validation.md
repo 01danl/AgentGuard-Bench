@@ -148,11 +148,23 @@ Analyzer.
 This is **one** run of a deliberately repetitive prompt. It establishes that a real model can
 receive a real Harness guard notice in a durable v4 log and that the Analyzer's counts and
 `UNKNOWN` reaction agree with a raw-event reconciliation. It does not establish a natural
-frequency of guard firing, model recovery, task success, guard benefit or harm, or behavior
-under a no-guard control. It also does not exercise a ZIP export, parallel tools, multiple
+frequency of guard firing, model recovery, task success, guard benefit or harm, or a general
+no-guard comparison. It also does not exercise a ZIP export, parallel tools, multiple
 sessions, other Harness versions or other models. Token usage and spending are not totaled.
 The model stopped before completing the instructed task; that is a factual outcome, not a
 success verdict.
 
 The gate in the [v0.2 proposal](v0.2-plan.md) is therefore met for one controlled
 real-model, guard-bearing log. It is not met for natural tasks or for a causal comparison.
+
+## Follow-up — 2026-10-29
+
+A single no-guard companion (RWV-004) reused the same prompt, model, workspace inputs, tool
+scope and time/output bounds with `repeat-tool-reminder` disabled. It made four
+`probe.txt` reads and then one `alternative.txt` read, with no guard message. Under the
+predeclared instruction-compliance criterion, the guard arm is `not_met` and the no-guard
+arm is `met`. This pair is consistent with the stop being guard-specific, but it is not
+causal evidence: one run per arm, fixed order, no randomization and a prompt that explicitly
+authorizes stopping on a reminder. See the
+[manual pair annotation](real-model-pair-annotation.md). No recovery label or efficacy claim
+is added.
