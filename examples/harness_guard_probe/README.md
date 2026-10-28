@@ -20,6 +20,18 @@ fresh empty `DSH_HOME` is required; personal profiles and managed credentials ar
 The actual guard's `[3, 5, 8]` thresholds and all-tools tracking defaults are preserved.
 No token usage is invented for the scripted adapter.
 
+## Plugin and overlay boundary
+
+The notice is produced by Harness's native `repeat-tool-reminder` plugin. This example does
+not implement or replace that plugin and never injects a reminder. The only plugin source
+here is [`read-only.mjs`](read-only.mjs), a validation-only `agent/created` hook that exposes
+the production `read` tool. [`live.patch.yml`](live.patch.yml) and
+[`no-guard.patch.yml`](no-guard.patch.yml) are profile patch layers, not plugins.
+
+AgentGuard Bench itself is the offline Python analyzer that reads the durable v4 JSONL or
+official ZIP. It is **not** a Harness plugin, does not run inside the agent loop and makes no
+network calls. A live-analysis plugin or an A/B runner is not implemented.
+
 ## Reproduce from the AgentGuard repository root
 
 Install AgentGuard as described in the project README. This example additionally needs
