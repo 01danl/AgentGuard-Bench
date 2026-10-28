@@ -168,3 +168,9 @@ causal evidence: one run per arm, fixed order, no randomization and a prompt tha
 authorizes stopping on a reminder. See the
 [manual pair annotation](real-model-pair-annotation.md). No recovery label or efficacy claim
 is added.
+
+A later required-repetition probe ([RWV-005](required-repetition-probe.md)) did not reproduce
+the stop. With five explicitly required polls and no stop-on-reminder instruction, both guard
+runs changed only argument spelling/`offset`/`limit`, continued the same `status.txt` reads
+and returned the expected code. This makes the RWV-003 stop look prompt-conditioned; it does
+not establish that explanation, and the earlier run remains a real `UNKNOWN` observation.

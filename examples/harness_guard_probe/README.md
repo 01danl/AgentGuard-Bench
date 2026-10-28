@@ -135,7 +135,9 @@ For a paired diagnostic, apply [`no-guard.patch.yml`](no-guard.patch.yml) as a s
 `--patch` layer after the materialized live overlay. It disables `repeat-tool-reminder`; it
 is only for a no-guard companion, never for repairing a guard-bearing run. One such pair is
 recorded in the [RWV-003/RWV-004 annotation](../../docs/real-model-pair-annotation.md);
-it is diagnostic, not an A/B efficacy result.
+it is diagnostic, not an A/B efficacy result. A required-repetition variant with no
+stop-on-reminder instruction is documented in
+[RWV-005](../../docs/required-repetition-probe.md).
 
 Analyze the printed **durable** `session.v4.jsonl` with `agentguard inspect` and
 `agentguard analyze --window 5 --format json`. A normal browser ZIP can alternatively

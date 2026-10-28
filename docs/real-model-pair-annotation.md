@@ -67,6 +67,12 @@ not proof of causality or benefit:
 - `criterion_met` in the no-guard arm is instruction compliance, not task success on a
   meaningful user task.
 
+A later required-repetition probe ([RWV-005](required-repetition-probe.md)) did not reproduce
+the stop: with no stop instruction and five explicitly required reads, both guard runs changed
+only argument spelling/`offset`/`limit` and still returned the code. This weakens a general
+"guard stops the model" reading and points to the stop instruction as a confound. The pair
+remains a single diagnostic, not a causal result.
+
 No recovery label is assigned. `task_success`, `recovered` and `guard_causal_effect` remain
 unknown/null. This pair is a diagnostic input to the next-stage design, not a population
 estimate and not an A/B efficacy result.
