@@ -38,7 +38,7 @@ The package is a local DSH bundle: its `package.json` declares
 
 ```bash
 pnpm pack
-dsh plugin --profile tui add "file:/absolute/path/agentguard-dsh-plugin-0.1.0.tgz"
+dsh plugin --profile tui add "file:/absolute/path/agentguard-dsh-plugin-0.1.1.tgz"
 ```
 
 The plugin manager adds the dependency, selects `agentguard-dsh-plugin` in
@@ -71,9 +71,12 @@ the profile patch:
     maxOutputBytes: 2097152
 ```
 
-`executable` defaults to `AGENTGUARD_BIN`, then `agentguard` on `PATH`. `window` defaults to
-5 and must be between 1 and 1000. `timeoutMs` and `maxOutputBytes` must be positive safe
-integers. Invalid configuration fails plugin startup rather than silently falling back.
+`executable`, when explicitly set, must be a non-empty string; `123`, `null`, `false` and
+`""` are rejected rather than replaced by a default. It otherwise defaults to
+`AGENTGUARD_BIN`, then `agentguard` on `PATH`. `window` defaults to 5 and must be between 1
+and 1000. `timeoutMs` must be a positive integer no greater than 2147483647 (Node's timer
+limit); `maxOutputBytes` must be a positive safe integer. Invalid configuration fails plugin
+startup rather than silently falling back.
 
 ## Use
 
@@ -104,10 +107,11 @@ node --test test-unit.mjs
 ```
 
 The end-to-end smoke test boots the installed Harness with the one-shot driver disabled and
-a scripted adapter, creates one Agent, performs one real tool turn, then exercises the real
-command registry. It checks current-session analysis, external JSONL analysis, quoted paths
-with spaces/backslashes/quotes, relative paths, missing files, invalid windows and malformed
-input. No provider inference occurs.
+a scripted adapter, creates one Agent with a fresh random session ID, performs one real tool
+turn, then exercises the real command registry. The random ID lets the installed-bundle mode
+run repeatedly against the same `DSH_HOME`. It checks current-session analysis, external
+JSONL analysis, quoted paths with spaces/backslashes/quotes, relative paths, missing files,
+invalid windows and malformed input. No provider inference occurs.
 
 Source-tree mode:
 
@@ -124,7 +128,7 @@ AGENTGUARD_INSTALLED_DSH_HOME="$PWD/private-data/plugin-install-headless" \
 ```
 
 The installed mode loads the package through the profile's `dsh.profile.bundles` rather than
-a literal module path.
+a literal module path. The 0.1.1 verification ran this mode twice against one `DSH_HOME`.
 
 ## Limits
 

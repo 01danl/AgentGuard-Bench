@@ -15,6 +15,7 @@ const DEFAULT_WINDOW = 5;
 const MAX_WINDOW = 1000;
 const MAX_OUTPUT_BYTES = 2 * 1024 * 1024;
 const DEFAULT_TIMEOUT_MS = 15000;
+const MAX_TIMEOUT_MS = 2147483647;
 
 export const name = 'agentguard-command';
 export const inject = ['commands'];
@@ -147,20 +148,31 @@ async function exportCurrentSession(invocation) {
   };
 }
 
-function configNonNegativeInteger(config, key, fallback) {
+function configPositiveInteger(config, key, fallback, maximum = Number.MAX_SAFE_INTEGER) {
   if (config[key] === undefined) return fallback;
-  if (!Number.isSafeInteger(config[key]) || config[key] <= 0) {
-    throw new TypeError(`agentguard-command: ${key} must be a positive safe integer`);
+  if (!Number.isSafeInteger(config[key]) || config[key] <= 0 || config[key] > maximum) {
+    throw new TypeError(
+      `agentguard-command: ${key} must be a positive safe integer no greater than ${maximum}`,
+    );
   }
   return config[key];
 }
 
+function configuredExecutable(config) {
+  if (config.executable !== undefined) {
+    if (typeof config.executable !== 'string' || config.executable.trim().length === 0) {
+      throw new TypeError('agentguard-command: executable must be a non-empty string');
+    }
+    return config.executable;
+  }
+  const ambient = process.env.AGENTGUARD_BIN;
+  return typeof ambient === 'string' && ambient.trim().length > 0 ? ambient : 'agentguard';
+}
+
 export function apply(ctx, config = {}) {
-  const executable = typeof config.executable === 'string' && config.executable.length > 0
-    ? config.executable
-    : (process.env.AGENTGUARD_BIN || 'agentguard');
-  const timeoutMs = configNonNegativeInteger(config, 'timeoutMs', DEFAULT_TIMEOUT_MS);
-  const maxOutputBytes = configNonNegativeInteger(config, 'maxOutputBytes', MAX_OUTPUT_BYTES);
+  const executable = configuredExecutable(config);
+  const timeoutMs = configPositiveInteger(config, 'timeoutMs', DEFAULT_TIMEOUT_MS, MAX_TIMEOUT_MS);
+  const maxOutputBytes = configPositiveInteger(config, 'maxOutputBytes', MAX_OUTPUT_BYTES);
   const defaultWindow = config.window === undefined ? DEFAULT_WINDOW : config.window;
   if (!Number.isSafeInteger(defaultWindow) || defaultWindow < 1 || defaultWindow > MAX_WINDOW) {
     throw new TypeError(`agentguard-command: window must be between 1 and ${MAX_WINDOW}`);

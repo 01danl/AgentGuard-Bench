@@ -1,6 +1,7 @@
 // End-to-end smoke test for the local /agentguard command plugin.
 // Boots the installed Harness, creates one Agent, exercises command inputs,
 // and exits nonzero unless the real command registry returns the expected results.
+import { randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { copyFile, mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -89,7 +90,7 @@ try {
   const adapter = new ScriptedAdapter();
   app.ctx.llm.registerAdapter(['agentguard-scripted'], adapter);
   const agent = await app.ctx.agentLoop.create(
-    SessionId('agentguard-command-test'),
+    SessionId(`agentguard-command-test-${randomUUID()}`),
     { provider: 'agentguard-scripted', model: 'scripted', reasoningEffort: 'off' },
     { cwd: workspace },
   );
