@@ -117,7 +117,7 @@ reaction. The task outcome and protocol are the same as in the guard arms.
 |---|---:|---:|---:|---:|
 | Tool calls / results | 6 / 6 | 6 / 6 | 6 / 6 | 6 / 6 |
 | Exact repeats | 2 | 4 | 4 | 2 |
-| Guard reminders | 1 | 0 | 0 | 0 |
+| Guard reminders | 1 | 0 | 0 | 1 |
 | Reaction | `CHANGED` | — | — | `CHANGED` |
 | Post-notice window | 3 / 5 | — | — | 3 / 5 |
 | Five status + secret | yes | yes | yes | yes |
