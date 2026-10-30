@@ -11,7 +11,7 @@ const packageRoot = process.env.AGENTGUARD_DSH_PACKAGE_ROOT;
 if (!packageRoot) throw new Error('AGENTGUARD_DSH_PACKAGE_ROOT is required');
 const require = createRequire(join(packageRoot, 'package.json'));
 const load = (name) => import(pathToFileURL(require.resolve(name)).href);
-const { LlmAdapter } = await load('@deepseek-ai/dsh-llm');
+const { LlmAdapter, createUserMessage } = await load('@deepseek-ai/dsh-llm');
 const { SessionId } = await load('@deepseek-ai/dsh-session');
 const { createLaunchEnvironmentSnapshot } = await load('@deepseek-ai/dsh-launch-environment');
 const { runProfile } = await import(pathToFileURL(join(packageRoot, 'lib/profile-boot.js')).href);
@@ -25,26 +25,54 @@ const repo = process.cwd();
 const fixture = resolve(repo, 'examples/synthetic-session.jsonl');
 const cli = resolve(repo, '.venv/bin/agentguard');
 const plugin = resolve(repo, 'examples/harness_agentguard_plugin/agentguard.mjs');
+const installedHome = process.env.AGENTGUARD_INSTALLED_DSH_HOME;
 const root = await mkdtemp(join(tmpdir(), 'agentguard-command-'));
-const home = join(root, 'home');
 const workspace = join(root, 'workspace');
-await mkdir(home);
 await mkdir(workspace);
+await writeFile(join(workspace, 'probe.txt'), 'PLUGIN_PROBE\n');
 
-const basePatch = await readFile(resolve(repo, 'examples/harness_guard_probe/probe.patch.yml'), 'utf8');
-const patch = join(root, 'plugin.patch.yml');
-await writeFile(patch, `${basePatch}\n- insert:\n    - id: agentguard-command-test\n      name: ${JSON.stringify(plugin)}\n`);
-
-process.env.DSH_HOME = home;
-process.env.HOME = home;
+let patch;
+if (installedHome !== undefined) {
+  const userHome = join(root, 'user-home');
+  await mkdir(userHome);
+  patch = resolve(repo, 'examples/harness_guard_probe/probe.patch.yml');
+  process.env.DSH_HOME = installedHome;
+  process.env.HOME = userHome;
+} else {
+  const home = join(root, 'home');
+  await mkdir(home);
+  const basePatch = await readFile(resolve(repo, 'examples/harness_guard_probe/probe.patch.yml'), 'utf8');
+  patch = join(root, 'plugin.patch.yml');
+  await writeFile(patch, `${basePatch}\n- insert:\n    - id: agentguard-command-test\n      name: ${JSON.stringify(plugin)}\n`);
+  process.env.DSH_HOME = home;
+  process.env.HOME = home;
+}
 process.env.AGENTGUARD_BIN = cli;
 
-class NoopAdapter extends LlmAdapter {
+class ScriptedAdapter extends LlmAdapter {
+  calls = 0;
   async resolveModel(provider, model) {
-    return { provider, id: model, name: 'Noop adapter; model calls are forbidden' };
+    return {
+      provider,
+      id: model,
+      name: 'Scripted plugin smoke adapter; no provider inference',
+      reasoning: { efforts: [{ id: 'off', name: 'Off' }], defaultEffort: 'off' },
+    };
   }
   async *stream() {
-    throw new Error('The command smoke test must not invoke the model');
+    this.calls += 1;
+    if (this.calls === 1) {
+      const args = JSON.stringify({ file_path: 'probe.txt' });
+      yield { type: 'block-start', index: 0, blockType: 'tool-call' };
+      yield { type: 'tool-call-delta', index: 0, id: 'plugin-read-1', name: 'read', argumentsDelta: args };
+      yield { type: 'block-end', index: 0, block: { type: 'tool-call', id: 'plugin-read-1', name: 'read', arguments: args } };
+      yield { type: 'finish', reason: { kind: 'tool-calls' } };
+      return;
+    }
+    yield { type: 'block-start', index: 0, blockType: 'text' };
+    yield { type: 'text-delta', index: 0, text: 'PLUGIN_PROBE' };
+    yield { type: 'block-end', index: 0, block: { type: 'text', text: 'PLUGIN_PROBE' } };
+    yield { type: 'finish', reason: { kind: 'stop' } };
   }
 }
 
@@ -58,14 +86,43 @@ try {
     patchFiles: [patch],
     args: ['agentguard command smoke test'],
   });
-  app.ctx.llm.registerAdapter(['agentguard-noop'], new NoopAdapter());
+  const adapter = new ScriptedAdapter();
+  app.ctx.llm.registerAdapter(['agentguard-scripted'], adapter);
   const agent = await app.ctx.agentLoop.create(
     SessionId('agentguard-command-test'),
-    { provider: 'agentguard-noop', model: 'noop', reasoningEffort: 'off' },
+    { provider: 'agentguard-scripted', model: 'scripted', reasoningEffort: 'off' },
     { cwd: workspace },
   );
 
+  const idle = new Promise((resolveIdle, rejectIdle) => {
+    const timer = setTimeout(() => {
+      dispose();
+      rejectIdle(new Error('scripted turn exceeded 20 seconds'));
+    }, 20000);
+    const dispose = app.ctx.on('agent/status', ({ agent: current, status }) => {
+      if (current === agent && status === 'idle') {
+        clearTimeout(timer);
+        dispose();
+        resolveIdle();
+      }
+    });
+  });
+  agent.followup(createUserMessage({
+    content: [{ type: 'text', text: 'Read probe.txt and reply with its content.' }],
+    source: { kind: 'user' },
+  }));
+  await idle;
+  await app.ctx.sessions.flush(agent.session);
+
   const run = (line) => app.ctx.commands.execute(agent, line, [], new AbortController().signal);
+
+  const current = await run('/agentguard');
+  if (current?.result.kind !== 'success') {
+    throw new Error(`expected current-session analysis, got ${JSON.stringify(current)}`);
+  }
+  if (!current.result.text.includes('Sessions: 1') || !current.result.text.includes('Tool calls: 1')) {
+    throw new Error(`current-session report was unexpected: ${current.result.text}`);
+  }
 
   const ok = await run(`/agentguard ${fixture} --window 5`);
   if (ok?.result.kind !== 'success') throw new Error(`expected success, got ${JSON.stringify(ok)}`);
@@ -118,20 +175,17 @@ try {
     throw new Error(`expected a window error, got ${JSON.stringify(badWindow)}`);
   }
 
-  const noArgs = await run('/agentguard');
-  if (noArgs?.result.kind !== 'error' || !noArgs.result.text.includes('Usage:')) {
-    throw new Error(`expected usage, got ${JSON.stringify(noArgs)}`);
-  }
-
   await app.ctx.sessions.flush(agent.session);
   exitCode = 0;
   console.log(JSON.stringify({
     harnessVersion: installedVersion,
-    plugin,
+    plugin: installedHome === undefined ? plugin : `installed package in ${installedHome}`,
     fixture,
+    installedMode: installedHome !== undefined,
     command: 'agentguard',
     success: true,
-    result: ok.result.text.split('\n').slice(0, 5),
+    currentSession: current.result.text.split('\n').slice(0, 5),
+    external: ok.result.text.split('\n').slice(0, 5),
   }, null, 2));
 } finally {
   if (app) await app.shutdown.shutdown(exitCode);

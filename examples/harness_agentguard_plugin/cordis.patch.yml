@@ -1,0 +1,5 @@
+# Bundle patch for agentguard-dsh-plugin.
+# The package name resolves from the profile after `dsh plugin ... add`.
+- insert:
+    - id: agentguard-command
+      name: agentguard-dsh-plugin

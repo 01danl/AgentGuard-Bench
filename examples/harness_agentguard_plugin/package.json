@@ -1,0 +1,31 @@
+{
+  "name": "agentguard-dsh-plugin",
+  "version": "0.1.0",
+  "description": "Offline AgentGuard analysis command for DeepSeek Harness",
+  "type": "module",
+  "main": "agentguard.mjs",
+  "exports": {
+    ".": "./agentguard.mjs",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "agentguard.mjs",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE",
+    "test-unit.mjs"
+  ],
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test test-unit.mjs"
+  },
+  "engines": {
+    "dsh": "0.2.1-rc.2"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

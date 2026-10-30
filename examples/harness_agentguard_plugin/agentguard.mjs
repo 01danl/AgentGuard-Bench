@@ -4,9 +4,10 @@
 // one human command and runs the offline `agentguard` CLI. It never injects a
 // guard reminder and never opens the network.
 import { execFile } from 'node:child_process';
-import { access, stat } from 'node:fs/promises';
+import { access, mkdtemp, rm, stat, writeFile } from 'node:fs/promises';
 import { constants } from 'node:fs';
-import { resolve } from 'node:path';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 import { parseArgs, promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
@@ -19,7 +20,7 @@ export const name = 'agentguard-command';
 export const inject = ['commands'];
 
 function usage() {
-  return 'Usage: /agentguard <session.jsonl|export.zip> [--window N]';
+  return 'Usage: /agentguard [session.jsonl|export.zip] [--window N]';
 }
 
 function failure(text) {
@@ -76,7 +77,7 @@ function tokenize(rawInput) {
   return tokens;
 }
 
-function parseRequest(rawInput) {
+function parseRequest(rawInput, defaultWindow = DEFAULT_WINDOW) {
   let parsed;
   try {
     parsed = parseArgs({
@@ -88,8 +89,8 @@ function parseRequest(rawInput) {
   } catch {
     return { error: usage() };
   }
-  if (parsed.positionals.length !== 1) return { error: usage() };
-  const rawWindow = parsed.values.window ?? String(DEFAULT_WINDOW);
+  if (parsed.positionals.length > 1) return { error: usage() };
+  const rawWindow = parsed.values.window ?? String(defaultWindow);
   if (!/^\d+$/u.test(rawWindow)) return { error: '--window must be a positive integer.\n' + usage() };
   const window = Number(rawWindow);
   if (!Number.isSafeInteger(window) || window < 1 || window > MAX_WINDOW) {
@@ -116,35 +117,88 @@ function commandFailure(error, timeoutMs) {
   return `AgentGuard failed (${String(error?.code ?? error?.name ?? 'unknown error')}).`;
 }
 
+/** Snapshot the live Agent session into a private temporary JSONL file. */
+async function exportCurrentSession(invocation) {
+  const session = invocation.agent?.session;
+  if (session === undefined || session.header === undefined || typeof session.snapshotEvents !== 'function') {
+    throw new Error('No current agent session is available.');
+  }
+  const events = session.snapshotEvents();
+  if (!Array.isArray(events)) throw new Error('Current session events are unavailable.');
+  const dir = await mkdtemp(join(tmpdir(), 'agentguard-current-'));
+  const file = join(dir, 'session.v4.jsonl');
+  try {
+    const header = {
+      ...session.header,
+      type: 'session',
+      delegationDepth: session.header.delegationDepth ?? 0,
+    };
+    const lines = [JSON.stringify(header), ...events.map((event) => JSON.stringify(event))];
+    await writeFile(file, `${lines.join('\n')}\n`, { mode: 0o600 });
+  } catch (error) {
+    await rm(dir, { recursive: true, force: true });
+    throw error;
+  }
+  return {
+    file,
+    cleanup: async () => {
+      await rm(dir, { recursive: true, force: true }).catch(() => {});
+    },
+  };
+}
+
+function configNonNegativeInteger(config, key, fallback) {
+  if (config[key] === undefined) return fallback;
+  if (!Number.isSafeInteger(config[key]) || config[key] <= 0) {
+    throw new TypeError(`agentguard-command: ${key} must be a positive safe integer`);
+  }
+  return config[key];
+}
+
 export function apply(ctx, config = {}) {
   const executable = typeof config.executable === 'string' && config.executable.length > 0
     ? config.executable
     : (process.env.AGENTGUARD_BIN || 'agentguard');
-  const timeoutMs = Number.isSafeInteger(config.timeoutMs) && config.timeoutMs > 0
-    ? config.timeoutMs
-    : DEFAULT_TIMEOUT_MS;
+  const timeoutMs = configNonNegativeInteger(config, 'timeoutMs', DEFAULT_TIMEOUT_MS);
+  const maxOutputBytes = configNonNegativeInteger(config, 'maxOutputBytes', MAX_OUTPUT_BYTES);
+  const defaultWindow = config.window === undefined ? DEFAULT_WINDOW : config.window;
+  if (!Number.isSafeInteger(defaultWindow) || defaultWindow < 1 || defaultWindow > MAX_WINDOW) {
+    throw new TypeError(`agentguard-command: window must be between 1 and ${MAX_WINDOW}`);
+  }
 
   ctx.commands.register({
     name: 'agentguard',
-    description: 'Analyze a Harness v4 session log or ZIP with AgentGuard (offline)',
-    input: { hint: '<session.jsonl|export.zip> [--window N]' },
+    description: 'Analyze the current session or a supplied v4 log/ZIP with AgentGuard (offline)',
+    input: { hint: '[session.jsonl|export.zip] [--window N]' },
     handler: async (invocation) => {
-      const request = parseRequest(invocation.rawInput);
+      const request = parseRequest(invocation.rawInput, defaultWindow);
       if (request.error !== undefined) return failure(request.error);
 
       const session = invocation.agent?.session;
       const sessionCwd = session?.header?.cwd ?? session?.cwd;
       const cwd = typeof sessionCwd === 'string' && sessionCwd.length > 0 ? sessionCwd : process.cwd();
-      const target = resolve(cwd, request.path);
-      if (!/\.(jsonl|zip)$/iu.test(target)) {
-        return failure('Expected a .jsonl session log or .zip export.\n' + usage());
-      }
-      try {
-        const info = await stat(target);
-        if (!info.isFile()) return failure(`Not a file: ${target}`);
-        await access(target, constants.R_OK);
-      } catch {
-        return failure(`Cannot read: ${target}`);
+      let target;
+      let cleanup;
+      if (request.path === undefined) {
+        try {
+          const current = await exportCurrentSession(invocation);
+          target = current.file;
+          cleanup = current.cleanup;
+        } catch (error) {
+          return failure(error instanceof Error ? error.message : 'The current session is unavailable.');
+        }
+      } else {
+        target = resolve(cwd, request.path);
+        if (!/\.(jsonl|zip)$/iu.test(target)) {
+          return failure('Expected a .jsonl session log or .zip export.\n' + usage());
+        }
+        try {
+          const info = await stat(target);
+          if (!info.isFile()) return failure(`Not a file: ${target}`);
+          await access(target, constants.R_OK);
+        } catch {
+          return failure(`Cannot read: ${target}`);
+        }
       }
 
       try {
@@ -159,7 +213,7 @@ export function apply(ctx, config = {}) {
               LANG: process.env.LANG ?? 'C.UTF-8',
             },
             timeout: timeoutMs,
-            maxBuffer: MAX_OUTPUT_BYTES,
+            maxBuffer: maxOutputBytes,
             encoding: 'utf8',
             windowsHide: true,
             signal: invocation.signal,
@@ -168,7 +222,11 @@ export function apply(ctx, config = {}) {
         return { kind: 'success', text: outputText(stdout) };
       } catch (error) {
         return failure(commandFailure(error, timeoutMs));
+      } finally {
+        if (cleanup !== undefined) await cleanup();
       }
     },
   });
 }
+
+export { parseRequest, tokenize };

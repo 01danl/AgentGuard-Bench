@@ -31,9 +31,9 @@ the production `read` tool. [`live.patch.yml`](live.patch.yml) and
 AgentGuard Bench itself is the offline Python analyzer that reads the durable v4 JSONL or
 official ZIP. It is **not** a Harness plugin, does not run inside the agent loop and makes no
 network calls. The separate
-[AgentGuard command plugin](../harness_agentguard_plugin/README.md) provides a local
-`/agentguard` command wrapper for analyzing a supplied durable log from a command-capable
-DSH profile; it does not observe the live session. An A/B runner is not implemented.
+[AgentGuard DSH plugin](../harness_agentguard_plugin/README.md) provides an installable
+`/agentguard` command that snapshots the current Agent session or analyzes a supplied
+durable log from a command-capable DSH profile. An A/B runner is not implemented.
 
 ## Reproduce from the AgentGuard repository root
 
