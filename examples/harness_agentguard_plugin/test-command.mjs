@@ -1,5 +1,5 @@
 // End-to-end smoke test for the local /agentguard command plugin.
-// Boots the installed Harness, creates one Agent, executes the command three times,
+// Boots the installed Harness, creates one Agent, exercises command inputs,
 // and exits nonzero unless the real command registry returns the expected results.
 import { createRequire } from 'node:module';
 import { copyFile, mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises';
@@ -80,6 +80,25 @@ try {
   const quoted = await run(`/agentguard "${spacedFixture}" --window 5`);
   if (quoted?.result.kind !== 'success' || !quoted.result.text.includes('Sessions: 1')) {
     throw new Error(`expected a quoted spaced path to succeed, got ${JSON.stringify(quoted)}`);
+  }
+
+  if (process.platform !== 'win32') {
+    // POSIX filenames may contain literal backslashes and double quotes.
+    const backslashFixture = join(spacedDir, 'session\\copy.jsonl');
+    await copyFile(fixture, backslashFixture);
+    const quoteFixture = join(spacedDir, 'session"copy.jsonl');
+    await copyFile(fixture, quoteFixture);
+    for (const rawPath of [
+      `"${backslashFixture}"`,
+      `"${backslashFixture.replaceAll('\\', '\\\\')}"`,
+      `'${backslashFixture}'`,
+      `"${quoteFixture.replaceAll('"', '\\"')}"`,
+    ]) {
+      const result = await run(`/agentguard ${rawPath} --window 5`);
+      if (result?.result.kind !== 'success' || !result.result.text.includes('Sessions: 1')) {
+        throw new Error(`expected quoted special characters to survive, got ${JSON.stringify(result)}`);
+      }
+    }
   }
 
   const relativeFixture = join(workspace, 'relative-session.jsonl');

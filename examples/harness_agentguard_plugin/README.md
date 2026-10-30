@@ -74,6 +74,7 @@ model adapter, creates one Agent, and executes the real command registry. It che
 - analysis of `examples/synthetic-session.jsonl` returns the expected counts and
   `Guard seq 20: IGNORED`;
 - a quoted path containing spaces works;
+- quoted POSIX paths preserve literal backslashes and support escaped double quotes;
 - a relative path resolves against the session `cwd`;
 - missing files, an invalid `--window`, and no arguments return errors.
 

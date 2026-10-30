@@ -41,7 +41,10 @@ function tokenize(rawInput) {
     }
     if (quote !== undefined) {
       if (character === quote) quote = undefined;
-      else if (character === '\\' && quote === '"') escaped = true;
+      else if (
+        character === '\\' && quote === '"'
+        && (rawInput[index + 1] === '\\' || rawInput[index + 1] === '"')
+      ) escaped = true;
       else current += character;
       continue;
     }
